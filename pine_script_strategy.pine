@@ -1,0 +1,44 @@
+//@version=5
+strategy("Momentum Pulse - Option Trading", overlay=true, default_qty_type=strategy.percent_of_equity, default_qty_value=100)
+
+// Input Parameters
+top_n = input(10, "Top-N Momentum Stocks")
+momentum_period = input(14, "Momentum Period")
+entry_hour_start = input(9, "Entry Hour Start")
+entry_minute_start = input(40, "Entry Minute Start")
+entry_hour_end = input(9, "Entry Hour End")
+entry_minute_end = input(45, "Entry Minute End")
+exit_hour = input(11, "Exit Hour")
+exit_minute = input(15, "Exit Minute")
+sl_percent = input(10.0, "Stop Loss %")
+webhook_url = input("", "Webhook URL")
+
+// Momentum Calculation
+momentum = close - ta.highest(close, momentum_period)
+momentum_pct = (momentum / ta.highest(close, momentum_period)) * 100
+
+// Time Window Checks
+in_entry_window = (hour == entry_hour_start and minute >= entry_minute_start) or 
+                  (hour == entry_hour_end and minute <= entry_minute_end)
+at_exit_time = (hour == exit_hour and minute == exit_minute)
+
+// Strategy Logic
+is_bullish = momentum > 0 and close > ta.sma(close, 20)
+is_bearish = momentum < 0 and close < ta.sma(close, 20)
+
+// Entry Signals
+if in_entry_window and is_bullish
+    alert_msg = str.format("ENTRY_CE|Symbol={0}|Strike=ATM|Qty=1|SL={1}", syminfo.tickerid, sl_percent)
+    strategy.entry("CE_Long", strategy.long, alert_message=alert_msg)
+    
+if in_entry_window and is_bearish
+    alert_msg = str.format("ENTRY_PE|Symbol={0}|Strike=ATM|Qty=1|SL={1}", syminfo.tickerid, sl_percent)
+    strategy.entry("PE_Long", strategy.long, alert_message=alert_msg)
+
+// Exit Signal
+if at_exit_time
+    strategy.close_all(comment="Exit - End of Trade Window")
+
+// Plot for visual confirmation
+plot(momentum, "Momentum", color.blue, linewidth=2)
+plot(ta.sma(close, 20), "SMA20", color.orange, linewidth=1)
